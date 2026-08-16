@@ -699,7 +699,7 @@ jobs:
           sudo rm -rf /opt/ghc &
           sudo rm -rf /opt/hostedtoolcache/CodeQL &
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="clang" LD="ld.lld" OBJCOPY="llvm-objcopy" O=out gki_defconfig &&
-          # ===== NetHunter 配置强制生效（防静默丢弃） =====
+          # ===== NetHunter 配置强制生效（GKI 树会把无线栈压成 m，我们接受 m 并编译模块） =====
           ./scripts/config --file out/.config \
             -e WLAN_VENDOR_ATH -e ATH_COMMON -e ATH9K -e ATH9K_HW -e ATH9K_COMMON -e ATH9K_HTC -e ATH9K_HTC_DEBUGFS \
             -e CFG80211 -e CFG80211_WEXT -e MAC80211 -e MAC80211_MESH -e MAC80211_LEDS -e NL80211_TESTMODE \
@@ -707,10 +707,17 @@ jobs:
             -e HIDRAW -e UHID -e HID_GENERIC &&
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="clang" LD="ld.lld" OBJCOPY="llvm-objcopy" O=out olddefconfig &&
           echo "===== 校验 NetHunter 配置 =====" &&
-          grep -E 'CONFIG_ATH9K_HTC=|CONFIG_CFG80211=|CONFIG_MAC80211=|CONFIG_WLAN_VENDOR_ATH=|CONFIG_ATH9K=|CONFIG_USB_CONFIGFS_F_HID=|CONFIG_UHID=' out/.config &&
-          (grep -q '^CONFIG_ATH9K_HTC=y' out/.config && grep -q '^CONFIG_CFG80211=y' out/.config && grep -q '^CONFIG_MAC80211=y' out/.config || { echo "!!! 致命：NetHunter 配置未生效，终止构建"; exit 1; }) &&
+          grep -E 'CONFIG_ATH9K_HTC=|CONFIG_CFG80211=|CONFIG_MAC80211=|CONFIG_WLAN_VENDOR_ATH=|CONFIG_ATH9K=|CONFIG_USB_CONFIGFS_F_HID=|CONFIG_UHID=' out/.config
+          grep -qE '^CONFIG_ATH9K_HTC=[my]$' out/.config && grep -qE '^CONFIG_CFG80211=[my]$' out/.config && grep -qE '^CONFIG_MAC80211=[my]$' out/.config || { echo "!!! 致命：NetHunter 配置未生效，终止构建"; exit 1; }
           export CC="$(pwd)/cc-wrapper" && export LD="$(pwd)/ld-wrapper" &&
-          make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out Image
+          make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out Image &&
+          echo "===== 编译无线模块 =====" &&
+          sudo apt-get install -y kmod >/dev/null 2>&1 || true &&
+          make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out modules &&
+          make LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out INSTALL_MOD_PATH=out/mods modules_install &&
+          echo "===== 模块清单 =====" &&
+          find out/mods/lib/modules -name '*.ko' -o -name '*.ko.*' | sort &&
+          ls -la out/arch/arm64/boot/Image
           
           # 编译后时间劫持二次校验
           echo "--- 编译后环境时间: $(LD_PRELOAD=$PRELOAD_LIBS date) ---"
@@ -760,6 +767,22 @@ jobs:
             echo "未找到内核镜像文件，构建可能出错"
             exit 1
           fi
+          # ===== NetHunter 无线模块打包 =====
+          mkdir -p ./nh_modules
+          find ../common/out/mods/lib/modules -name '*.ko' -exec cp {} ./nh_modules/ \; 2>/dev/null || true
+          ls -la ./nh_modules/ | head -30
+          cat > ./nh_modules/load.sh <<'LOADEOF'
+#!/system/bin/sh
+# NetHunter 无线模块加载脚本（root 执行：sh load.sh）
+MODDIR=$(dirname "$0")
+for m in cfg80211 mac80211 ath ath9k_hw ath9k_common ath9k_htc; do
+  f=$(find "$MODDIR" -maxdepth 1 -name "$m.ko" | head -n1)
+  if [ -n "$f" ]; then
+    insmod "$f" 2>/dev/null && echo "loaded $m" || echo "skip/fail $m"
+  fi
+done
+LOADEOF
+          chmod 755 ./nh_modules/load.sh
           if [[ ${{ github.event.inputs.ksu_type }} == "sukisu" ]]; then
             KSU_TYPENAME="SukiSU"
           elif [[ ${{ github.event.inputs.ksu_type }} == "resukisu" ]]; then
