@@ -386,8 +386,9 @@ jobs:
           # 6.12内核Rust配置
           echo "CONFIG_RUST=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_ANDROID_BINDER_IPC_RUST=m" >> ./common/arch/arm64/configs/gki_defconfig
-                  # ========== NetHunter 支持配置（修正版） ==========
-          # AR9271：ATH9K 主选项必须加，否则 ATH9K_HTC 会被静默丢弃
+          # ========== NetHunter 支持配置（最终版 v3） ==========
+          # AR9271 完整依赖链：WLAN_VENDOR_ATH 是 ATH9K 的父菜单，缺一不可
+          echo "CONFIG_WLAN_VENDOR_ATH=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_ATH_COMMON=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_ATH9K=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_ATH9K_HW=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -401,7 +402,7 @@ jobs:
           echo "CONFIG_MAC80211_MESH=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_MAC80211_LEDS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_NL80211_TESTMODE=y" >> ./common/arch/arm64/configs/gki_defconfig
-          # USB HID 攻击（选项名已修正）
+          # USB HID 攻击
           echo "CONFIG_USB_GADGET=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_USB_CONFIGFS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_USB_CONFIGFS_F_HID=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -698,6 +699,16 @@ jobs:
           sudo rm -rf /opt/ghc &
           sudo rm -rf /opt/hostedtoolcache/CodeQL &
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="clang" LD="ld.lld" OBJCOPY="llvm-objcopy" O=out gki_defconfig &&
+          # ===== NetHunter 配置强制生效（防静默丢弃） =====
+          ./scripts/config --file out/.config \
+            -e WLAN_VENDOR_ATH -e ATH_COMMON -e ATH9K -e ATH9K_HW -e ATH9K_COMMON -e ATH9K_HTC -e ATH9K_HTC_DEBUGFS \
+            -e CFG80211 -e CFG80211_WEXT -e MAC80211 -e MAC80211_MESH -e MAC80211_LEDS -e NL80211_TESTMODE \
+            -e USB_CONFIGFS_F_HID -e USB_CONFIGFS_ECM -e USB_CONFIGFS_RNDIS -e USB_CONFIGFS_EEM \
+            -e HIDRAW -e UHID -e HID_GENERIC &&
+          make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="clang" LD="ld.lld" OBJCOPY="llvm-objcopy" O=out olddefconfig &&
+          echo "===== 校验 NetHunter 配置 =====" &&
+          grep -E 'CONFIG_ATH9K_HTC=|CONFIG_CFG80211=|CONFIG_MAC80211=|CONFIG_WLAN_VENDOR_ATH=|CONFIG_ATH9K=|CONFIG_USB_CONFIGFS_F_HID=|CONFIG_UHID=' out/.config &&
+          (grep -q '^CONFIG_ATH9K_HTC=y' out/.config && grep -q '^CONFIG_CFG80211=y' out/.config && grep -q '^CONFIG_MAC80211=y' out/.config || { echo "!!! 致命：NetHunter 配置未生效，终止构建"; exit 1; }) &&
           export CC="$(pwd)/cc-wrapper" && export LD="$(pwd)/ld-wrapper" &&
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out Image
           
