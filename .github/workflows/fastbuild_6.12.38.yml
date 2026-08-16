@@ -714,9 +714,10 @@ jobs:
           echo "===== 编译无线模块 =====" &&
           sudo apt-get install -y kmod >/dev/null 2>&1 || true &&
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out modules &&
-          make LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out INSTALL_MOD_PATH=out/mods modules_install &&
+          make LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out INSTALL_MOD_PATH="$(pwd)/out/mods" modules_install &&
           echo "===== 模块清单 =====" &&
-          find out/mods/lib/modules -name '*.ko' -o -name '*.ko.*' | sort &&
+          find out/mods/lib/modules -name '*.ko' | sort &&
+          [ "$(find out/mods/lib/modules -name '*.ko' | wc -l)" -gt 0 ] || { echo "!!! 未找到任何模块，检查 modules_install 路径"; find out -name '*.ko' | head -20; exit 1; } &&
           ls -la out/arch/arm64/boot/Image
           
           # 编译后时间劫持二次校验
@@ -770,6 +771,8 @@ jobs:
           # ===== NetHunter 无线模块打包 =====
           mkdir -p ./nh_modules
           find ../common/out/mods/lib/modules -name '*.ko' -exec cp {} ./nh_modules/ \; 2>/dev/null || true
+          KO_COUNT=$(ls ./nh_modules/*.ko 2>/dev/null | wc -l)
+          echo "打包了 $KO_COUNT 个模块"
           ls -la ./nh_modules/ | head -30
           cat > ./nh_modules/load.sh <<'LOADEOF'
           #!/system/bin/sh
