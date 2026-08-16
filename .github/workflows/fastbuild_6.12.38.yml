@@ -386,30 +386,29 @@ jobs:
           # 6.12内核Rust配置
           echo "CONFIG_RUST=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_ANDROID_BINDER_IPC_RUST=m" >> ./common/arch/arm64/configs/gki_defconfig
-          # ========== NetHunter 支持配置（新增） ==========
-          # 外置网卡支持（AR9271）
+                  # ========== NetHunter 支持配置（修正版） ==========
+          # AR9271：ATH9K 主选项必须加，否则 ATH9K_HTC 会被静默丢弃
           echo "CONFIG_ATH_COMMON=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_ATH9K=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_ATH9K_HW=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_ATH9K_COMMON=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_ATH9K_HTC=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_ATH9K_HTC_DEBUGFS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          # 监控模式支持
+          # 无线栈
           echo "CONFIG_CFG80211=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_CFG80211_WEXT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_CFG80211_WEXT_EXPORT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_MAC80211=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_MAC80211_MESH=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_MAC80211_LEDS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_NL80211_TESTMODE=y" >> ./common/arch/arm64/configs/gki_defconfig
-          # USB HID 支持（HID 攻击）
+          # USB HID 攻击（选项名已修正）
           echo "CONFIG_USB_GADGET=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_USB_CONFIGFS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_USB_CONFIGFS_HID=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_USB_CONFIGFS_F_HID=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_USB_CONFIGFS_ECM=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_USB_CONFIGFS_ECM_SUBSET=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_USB_CONFIGFS_RNDIS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_USB_CONFIGFS_EEM=y" >> ./common/arch/arm64/configs/gki_defconfig
-          # HID 底层支持
+          # HID 底层
           echo "CONFIG_HIDRAW=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_UHID=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_HID_GENERIC=y" >> ./common/arch/arm64/configs/gki_defconfig
