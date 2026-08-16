@@ -701,6 +701,7 @@ jobs:
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="clang" LD="ld.lld" OBJCOPY="llvm-objcopy" O=out gki_defconfig &&
           # ===== NetHunter 配置强制生效（GKI 树会把无线栈压成 m，我们接受 m 并编译模块） =====
           ./scripts/config --file out/.config \
+            -d IKHEADERS \
             -e WLAN_VENDOR_ATH -e ATH_COMMON -e ATH9K -e ATH9K_HW -e ATH9K_COMMON -e ATH9K_HTC -e ATH9K_HTC_DEBUGFS \
             -e CFG80211 -e CFG80211_WEXT -e MAC80211 -e MAC80211_MESH -e MAC80211_LEDS -e NL80211_TESTMODE \
             -e USB_CONFIGFS_F_HID -e USB_CONFIGFS_ECM -e USB_CONFIGFS_RNDIS -e USB_CONFIGFS_EEM \
