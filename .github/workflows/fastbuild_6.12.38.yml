@@ -712,10 +712,15 @@ jobs:
           grep -qE '^CONFIG_ATH9K_HTC=[my]$' out/.config && grep -qE '^CONFIG_CFG80211=[my]$' out/.config && grep -qE '^CONFIG_MAC80211=[my]$' out/.config || { echo "!!! 致命：NetHunter 配置未生效，终止构建"; exit 1; }
           export CC="$(pwd)/cc-wrapper" && export LD="$(pwd)/ld-wrapper" &&
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out Image &&
-          echo "===== 编译无线模块 =====" &&
-          sudo apt-get install -y kmod >/dev/null 2>&1 || true &&
-          make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out modules &&
-          echo "===== 模块清单（直接从 out 树收集，跳过 modules_install） =====" &&
+          echo "===== 编译 NetHunter 无线模块（逐个目标，绕开全局 modpost） =====" &&
+          make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out \
+            net/wireless/cfg80211.ko \
+            net/mac80211/mac80211.ko \
+            drivers/net/wireless/ath/ath.ko \
+            drivers/net/wireless/ath/ath9k/ath9k_hw.ko \
+            drivers/net/wireless/ath/ath9k/ath9k_common.ko \
+            drivers/net/wireless/ath/ath9k/ath9k_htc.ko &&
+          echo "===== 模块清单 =====" &&
           find out -name '*.ko' | sort &&
           [ "$(find out -name '*.ko' | wc -l)" -gt 0 ] || { echo "!!! 未找到任何模块"; exit 1; } &&
           ls -la out/arch/arm64/boot/Image
