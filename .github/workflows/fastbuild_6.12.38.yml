@@ -772,16 +772,16 @@ jobs:
           find ../common/out/mods/lib/modules -name '*.ko' -exec cp {} ./nh_modules/ \; 2>/dev/null || true
           ls -la ./nh_modules/ | head -30
           cat > ./nh_modules/load.sh <<'LOADEOF'
-#!/system/bin/sh
-# NetHunter 无线模块加载脚本（root 执行：sh load.sh）
-MODDIR=$(dirname "$0")
-for m in cfg80211 mac80211 ath ath9k_hw ath9k_common ath9k_htc; do
-  f=$(find "$MODDIR" -maxdepth 1 -name "$m.ko" | head -n1)
-  if [ -n "$f" ]; then
-    insmod "$f" 2>/dev/null && echo "loaded $m" || echo "skip/fail $m"
-  fi
-done
-LOADEOF
+          #!/system/bin/sh
+          # NetHunter 无线模块加载脚本（root 执行：sh load.sh）
+          MODDIR=$(dirname "$0")
+          for m in cfg80211 mac80211 ath ath9k_hw ath9k_common ath9k_htc; do
+            f=$(find "$MODDIR" -maxdepth 1 -name "$m.ko" | head -n1)
+            if [ -n "$f" ]; then
+              insmod "$f" 2>/dev/null && echo "loaded $m" || echo "skip/fail $m"
+            fi
+          done
+          LOADEOF
           chmod 755 ./nh_modules/load.sh
           if [[ ${{ github.event.inputs.ksu_type }} == "sukisu" ]]; then
             KSU_TYPENAME="SukiSU"
