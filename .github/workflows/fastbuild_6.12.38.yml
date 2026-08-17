@@ -702,6 +702,7 @@ jobs:
           # ===== NetHunter 配置强制生效（GKI 树会把无线栈压成 m，我们接受 m 并编译模块） =====
           ./scripts/config --file out/.config \
             -d IKHEADERS \
+            -m CRYPTO_ARC4 \
             -e WLAN_VENDOR_ATH -e ATH_COMMON -e ATH9K -e ATH9K_HW -e ATH9K_COMMON -e ATH9K_HTC -e ATH9K_HTC_DEBUGFS \
             -e CFG80211 -e CFG80211_WEXT -e MAC80211 -e MAC80211_MESH -e MAC80211_LEDS -e NL80211_TESTMODE \
             -e USB_CONFIGFS_F_HID -e USB_CONFIGFS_ECM -e USB_CONFIGFS_RNDIS -e USB_CONFIGFS_EEM \
@@ -712,8 +713,10 @@ jobs:
           grep -qE '^CONFIG_ATH9K_HTC=[my]$' out/.config && grep -qE '^CONFIG_CFG80211=[my]$' out/.config && grep -qE '^CONFIG_MAC80211=[my]$' out/.config || { echo "!!! 致命：NetHunter 配置未生效，终止构建"; exit 1; }
           export CC="$(pwd)/cc-wrapper" && export LD="$(pwd)/ld-wrapper" &&
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out Image &&
-          echo "===== 编译 NetHunter 无线模块（逐个目标，绕开全局 modpost） =====" &&
+          echo "===== 编译 NetHunter 无线模块（含依赖：rfkill + arc4） =====" &&
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out \
+            net/rfkill/rfkill.ko \
+            crypto/arc4.ko \
             net/wireless/cfg80211.ko \
             net/mac80211/mac80211.ko \
             drivers/net/wireless/ath/ath.ko \
@@ -783,7 +786,7 @@ jobs:
           #!/system/bin/sh
           # NetHunter 无线模块加载脚本（root 执行：sh load.sh）
           MODDIR=$(dirname "$0")
-          for m in cfg80211 mac80211 ath ath9k_hw ath9k_common ath9k_htc; do
+          for m in rfkill arc4 cfg80211 mac80211 ath ath9k_hw ath9k_common ath9k_htc; do
             f=$(find "$MODDIR" -maxdepth 1 -name "$m.ko" | head -n1)
             if [ -n "$f" ]; then
               insmod "$f" 2>/dev/null && echo "loaded $m" || echo "skip/fail $m"
