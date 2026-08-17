@@ -159,6 +159,17 @@ jobs:
             sed -i 's/ -dirty//g' "$f"
             sed -i '$i res=$(echo "$res" | sed '\''s/-dirty//g'\'')' "$f"
           done
+          echo ">>> 用设备实测可开机的 boot_a 配置替换基础 defconfig..."
+          wget -q https://github.com/$GITHUB_REPOSITORY/raw/refs/heads/$GITHUB_REF_NAME/boot_a.config -O boot_a.config || true
+          if [ ! -s boot_a.config ]; then
+            gh api repos/$GITHUB_REPOSITORY/contents/boot_a.config?ref=$GITHUB_REF_NAME --jq '.content' | base64 -d > boot_a.config 2>/dev/null || true
+          fi
+          if [ -s boot_a.config ] && grep -q '^CONFIG_KSU=y' boot_a.config; then
+            cp boot_a.config common/arch/arm64/configs/gki_defconfig
+            echo ">>> 已替换为 boot_a 基础配置"
+          else
+            echo ">>> 警告：boot_a.config 不可用，继续使用默认 gki_defconfig"
+          fi
 
       - name: 配置ccache目录
         run: |
@@ -701,27 +712,21 @@ jobs:
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="clang" LD="ld.lld" OBJCOPY="llvm-objcopy" O=out gki_defconfig &&
           # ===== NetHunter 配置强制生效（GKI 树会把无线栈压成 m，我们接受 m 并编译模块） =====
           ./scripts/config --file out/.config \
-            -d IKHEADERS \
-            -e WLAN_VENDOR_ATH -e ATH_COMMON -e ATH9K -e ATH9K_HW -e ATH9K_COMMON -e ATH9K_HTC -e ATH9K_HTC_DEBUGFS \
             -e CFG80211 -e CFG80211_WEXT -e MAC80211 -e MAC80211_MESH -e MAC80211_LEDS -e NL80211_TESTMODE \
             -e USB_CONFIGFS_F_HID -e USB_CONFIGFS_ECM -e USB_CONFIGFS_RNDIS -e USB_CONFIGFS_EEM \
             -e HIDRAW -e UHID -e HID_GENERIC &&
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="clang" LD="ld.lld" OBJCOPY="llvm-objcopy" O=out olddefconfig &&
           echo "===== 校验 NetHunter 配置 =====" &&
           grep -E 'CONFIG_ATH9K_HTC=|CONFIG_CFG80211=|CONFIG_MAC80211=|CONFIG_WLAN_VENDOR_ATH=|CONFIG_ATH9K=|CONFIG_USB_CONFIGFS_F_HID=|CONFIG_UHID=' out/.config
-          grep -qE '^CONFIG_ATH9K_HTC=[my]$' out/.config && grep -qE '^CONFIG_CFG80211=[my]$' out/.config && grep -qE '^CONFIG_MAC80211=[my]$' out/.config || { echo "!!! 致命：NetHunter 配置未生效，终止构建"; exit 1; }
+          grep -qE '^CONFIG_CFG80211=[my]$' out/.config && grep -qE '^CONFIG_MAC80211=[my]$' out/.config || { echo "!!! 致命：NetHunter 配置未生效，终止构建"; exit 1; }
           export CC="$(pwd)/cc-wrapper" && export LD="$(pwd)/ld-wrapper" &&
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out Image &&
-          echo "===== 编译 NetHunter 无线模块（含依赖：rfkill + libarc4） =====" &&
+          echo "===== 编译无线模块（测试版：暂不含 ath9k） =====" &&
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="$(pwd)/cc-wrapper" LD="$(pwd)/ld-wrapper" OBJCOPY="llvm-objcopy" O=out \
             net/rfkill/rfkill.ko \
             lib/crypto/libarc4.ko \
             net/wireless/cfg80211.ko \
-            net/mac80211/mac80211.ko \
-            drivers/net/wireless/ath/ath.ko \
-            drivers/net/wireless/ath/ath9k/ath9k_hw.ko \
-            drivers/net/wireless/ath/ath9k/ath9k_common.ko \
-            drivers/net/wireless/ath/ath9k/ath9k_htc.ko &&
+            net/mac80211/mac80211.ko &&
           echo "===== 模块清单 =====" &&
           find out -name '*.ko' | sort &&
           [ "$(find out -name '*.ko' | wc -l)" -gt 0 ] || { echo "!!! 未找到任何模块"; exit 1; } &&
