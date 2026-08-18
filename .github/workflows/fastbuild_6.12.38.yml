@@ -411,7 +411,8 @@ jobs:
           echo "CONFIG_CFG80211_WEXT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_MAC80211=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_MAC80211_MESH=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_MAC80211_LEDS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          # 设备现有 vendor mac80211 未导出 LED helper；ath9k_htc 必须关闭 LED 依赖才能作为外置模块加载
+          echo "CONFIG_MAC80211_LEDS=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_NL80211_TESTMODE=y" >> ./common/arch/arm64/configs/gki_defconfig
           # USB HID 攻击
           echo "CONFIG_USB_GADGET=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -712,7 +713,7 @@ jobs:
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="clang" LD="ld.lld" OBJCOPY="llvm-objcopy" O=out gki_defconfig &&
           # ===== NetHunter 配置强制生效（GKI 树会把无线栈压成 m，我们接受 m 并编译模块） =====
           ./scripts/config --file out/.config \
-            -e CFG80211 -e CFG80211_WEXT -e MAC80211 -e MAC80211_MESH -e MAC80211_LEDS -e NL80211_TESTMODE \
+            -e CFG80211 -e CFG80211_WEXT -e MAC80211 -e MAC80211_MESH -d MAC80211_LEDS -e NL80211_TESTMODE \
             -e USB_CONFIGFS_F_HID -e USB_CONFIGFS_ECM -e USB_CONFIGFS_RNDIS -e USB_CONFIGFS_EEM \
             -e HIDRAW -e UHID -e HID_GENERIC &&
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="clang" LD="ld.lld" OBJCOPY="llvm-objcopy" O=out olddefconfig &&
