@@ -427,6 +427,9 @@ jobs:
           echo "CONFIG_HID_GENERIC=y" >> ./common/arch/arm64/configs/gki_defconfig
           # 设备 vendor mac80211 无 LED helper；移除 ATH9K/ATH9K_HTC 对 MAC80211_LEDS 的强制 select
           sed -i '/^[[:space:]]*select MAC80211_LEDS if /d' ./common/drivers/net/wireless/ath/ath9k/Kconfig
+          # 厂商 cfg80211 会拒绝该驱动的多接口组合；禁用组合声明，保留单接口/monitor 模式
+          sed -i 's/hw->wiphy->n_iface_combinations = 1;/hw->wiphy->n_iface_combinations = 0;/' ./common/drivers/net/wireless/ath/ath9k/htc_drv_init.c
+          grep -q 'hw->wiphy->n_iface_combinations = 0;' ./common/drivers/net/wireless/ath/ath9k/htc_drv_init.c || { echo "!!! 致命：ath9k_htc 接口组合兼容补丁未应用"; exit 1; }
           # ========== NetHunter 支持配置结束 ==========
           
           # 应用 CVE_2026_43499 修复补丁
