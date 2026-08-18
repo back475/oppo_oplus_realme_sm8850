@@ -425,6 +425,8 @@ jobs:
           echo "CONFIG_HIDRAW=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_UHID=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_HID_GENERIC=y" >> ./common/arch/arm64/configs/gki_defconfig
+          # 设备 vendor mac80211 无 LED helper；移除 ATH9K/ATH9K_HTC 对 MAC80211_LEDS 的强制 select
+          sed -i '/^[[:space:]]*select MAC80211_LEDS if /d' ./common/drivers/net/wireless/ath/ath9k/Kconfig
           # ========== NetHunter 支持配置结束 ==========
           
           # 应用 CVE_2026_43499 修复补丁
@@ -718,8 +720,9 @@ jobs:
             -e HIDRAW -e UHID -e HID_GENERIC &&
           make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="clang" LD="ld.lld" OBJCOPY="llvm-objcopy" O=out olddefconfig &&
           echo "===== 校验 NetHunter 配置 =====" &&
-          grep -E 'CONFIG_ATH9K_HTC=|CONFIG_CFG80211=|CONFIG_MAC80211=|CONFIG_WLAN_VENDOR_ATH=|CONFIG_ATH9K=|CONFIG_USB_CONFIGFS_F_HID=|CONFIG_UHID=' out/.config
+          grep -E 'CONFIG_ATH9K_HTC=|CONFIG_CFG80211=|CONFIG_MAC80211=|CONFIG_MAC80211_LEDS|CONFIG_WLAN_VENDOR_ATH=|CONFIG_ATH9K=|CONFIG_USB_CONFIGFS_F_HID=|CONFIG_UHID=' out/.config
           grep -qE '^CONFIG_CFG80211=[my]$' out/.config && grep -qE '^CONFIG_MAC80211=[my]$' out/.config || { echo "!!! 致命：NetHunter 配置未生效，终止构建"; exit 1; }
+          grep -q '^# CONFIG_MAC80211_LEDS is not set$' out/.config || { echo "!!! 致命：MAC80211_LEDS 仍被 Kconfig select 强制启用"; exit 1; }
           echo "===== 安装配置隐身钩子（OPLUS 开机配置校验兼容） ====="
           python3 - <<'PYEOF'
           import re
